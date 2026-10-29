@@ -66,22 +66,19 @@ That includes passwords, private messages and anything else you type.
 You need OBS 28 or later (it includes the WebSocket server) and Python 3.9 or later.
 
 1. In OBS, open **Tools, WebSocket Server Settings**, tick **Enable WebSocket server** and keep port `4455`.
-2. If OBS asks for a server password, set it in the `OBS_PASSWORD` environment variable before you run Macrolens.
-   In PowerShell: `$env:OBS_PASSWORD = "your password"`. The password is never saved in the code.
-3. Install the packages:
-
-   ```
-   pip install -r requirements.txt
-   ```
-
-4. Open OBS, then start Macrolens:
+2. Open OBS, then start Macrolens:
 
    ```
    python macrolens.py
    ```
 
-5. Press record in OBS, do your task, and stop the recording.
-6. Press `Ctrl+C` in the Macrolens window to quit.
+3. The first time, Macrolens does two things for you:
+   - If the packages in `requirements.txt` are missing, it asks whether to install them with pip, and installs them if you say yes.
+   - If it has no OBS password stored, it asks for one (press Enter if OBS has none) and offers to save it.
+     The password is saved in a `.obs_password` file beside `macrolens.py`. The file is in `.gitignore`. Delete it to be asked again.
+     To skip the question, set the `OBS_PASSWORD` environment variable instead; it wins over the saved file.
+4. Press record in OBS, do your task, and stop the recording.
+5. Press `Ctrl+C` in the Macrolens window to quit.
 
 If OBS is not open when you start Macrolens, it stops with a connection error.
 

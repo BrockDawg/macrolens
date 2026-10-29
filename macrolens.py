@@ -7,24 +7,79 @@
 #   - Logs go to a logs/ folder beside this file, one tab-separated line per event.
 #   - A RECORD_START line and a RECORD_STOP line carry wall-clock times to line the log up with the video.
 #   - Renamed from obs-key-logger.py to macrolens.py. The MP4 player, C# logger and build files were removed.
+#   - Offers to install the requirements when they are missing, and asks for the OBS password when none is stored.
 import ctypes
+import getpass
+import importlib
+import importlib.util
 import os
+import subprocess
 import sys
 import threading
 import time
 from datetime import datetime
 
-from obswebsocket import obsws, requests
-from pynput import keyboard, mouse
+HERE = os.path.dirname(os.path.abspath(__file__))
+REQUIREMENTS_FILE = os.path.join(HERE, "requirements.txt")
+PASSWORD_FILE = os.path.join(HERE, ".obs_password")  # git-ignored; an empty file means "OBS has no password"
+
+# import name -> pip package, for the check below
+REQUIRED_MODULES = {"pynput": "pynput", "obswebsocket": "obs-websocket-py"}
+
+
+def ask_yes_no(question, default=True):
+    """Ask on the console. Returns the default when there is no console to ask on."""
+    if not sys.stdin or not sys.stdin.isatty():
+        return default
+    answer = input(f"{question} [{'Y/n' if default else 'y/N'}] ").strip().lower()
+    return default if not answer else answer.startswith("y")
+
+
+def ensure_requirements():
+    """If a required package is missing, offer to install requirements.txt, then carry on."""
+    missing = [pkg for mod, pkg in REQUIRED_MODULES.items() if importlib.util.find_spec(mod) is None]
+    if not missing:
+        return
+    print(f"Macrolens needs these packages, which are not installed: {', '.join(missing)}")
+    interactive = bool(sys.stdin and sys.stdin.isatty())
+    if not interactive or not ask_yes_no("Install them now with pip?"):
+        sys.exit(f"Install them with: {sys.executable} -m pip install -r requirements.txt")
+    result = subprocess.run([sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE])
+    if result.returncode != 0:
+        sys.exit("pip could not install the packages (see the messages above). Fix that and run Macrolens again.")
+    importlib.invalidate_caches()
+    print("Installed.\n")
+
+
+ensure_requirements()
+
+from obswebsocket import obsws, requests  # noqa: E402
+from pynput import keyboard, mouse  # noqa: E402
 
 # OBS WebSocket settings
 OBS_HOST = "localhost"
 OBS_PORT = 4455
-OBS_PASSWORD = os.environ.get("OBS_PASSWORD", "")  # set the OBS_PASSWORD environment variable if OBS asks for one
 
 POLL_INTERVAL = 1 / 30
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+LOG_DIR = os.path.join(HERE, "logs")
+
+
+def get_obs_password():
+    """The OBS password: the OBS_PASSWORD environment variable, else the stored one, else ask once and offer to store it."""
+    if "OBS_PASSWORD" in os.environ:
+        return os.environ["OBS_PASSWORD"]
+    if os.path.exists(PASSWORD_FILE):
+        with open(PASSWORD_FILE, encoding="utf-8") as f:
+            return f.read().strip("\r\n")
+    if not (sys.stdin and sys.stdin.isatty()):
+        return ""  # nothing to ask on; try OBS without a password
+    password = getpass.getpass("OBS WebSocket password (press Enter if OBS has none): ")
+    if ask_yes_no("Save it on this computer so Macrolens does not ask again?"):
+        with open(PASSWORD_FILE, "w", encoding="utf-8") as f:
+            f.write(password)
+        print(f"Saved to {PASSWORD_FILE}. Delete that file to be asked again.")
+    return password
 
 lock = threading.Lock()
 recording = False
@@ -104,14 +159,14 @@ def stop_log():
 
 
 def main_loop():
-    ws = obsws(OBS_HOST, OBS_PORT, OBS_PASSWORD)
+    ws = obsws(OBS_HOST, OBS_PORT, get_obs_password())
     try:
         ws.connect()
     except Exception as err:
         sys.exit(
             f"Could not reach OBS at {OBS_HOST}:{OBS_PORT} ({err}).\n"
             "Open OBS and turn on Tools > WebSocket Server Settings > Enable WebSocket server.\n"
-            "If OBS has a server password, set it first: $env:OBS_PASSWORD = 'your password' (PowerShell)."
+            f"If the password is wrong, delete {PASSWORD_FILE} (or fix the OBS_PASSWORD environment variable) and run again."
         )
     print("Connected to OBS WebSocket. Press Ctrl+C to quit.")
     try:
