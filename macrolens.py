@@ -20,7 +20,7 @@ from pynput import keyboard, mouse
 # OBS WebSocket settings
 OBS_HOST = "localhost"
 OBS_PORT = 4455
-OBS_PASSWORD = ""  # set this if you enabled a password in OBS
+OBS_PASSWORD = os.environ.get("OBS_PASSWORD", "")  # set the OBS_PASSWORD environment variable if OBS asks for one
 
 POLL_INTERVAL = 1 / 30
 
@@ -110,7 +110,8 @@ def main_loop():
     except Exception as err:
         sys.exit(
             f"Could not reach OBS at {OBS_HOST}:{OBS_PORT} ({err}).\n"
-            "Open OBS and turn on Tools > WebSocket Server Settings > Enable WebSocket server."
+            "Open OBS and turn on Tools > WebSocket Server Settings > Enable WebSocket server.\n"
+            "If OBS has a server password, set it first: $env:OBS_PASSWORD = 'your password' (PowerShell)."
         )
     print("Connected to OBS WebSocket. Press Ctrl+C to quit.")
     try:

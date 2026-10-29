@@ -66,7 +66,8 @@ That includes passwords, private messages and anything else you type.
 You need OBS 28 or later (it includes the WebSocket server) and Python 3.9 or later.
 
 1. In OBS, open **Tools, WebSocket Server Settings**, tick **Enable WebSocket server** and keep port `4455`.
-2. If you set a password there, put it in `OBS_PASSWORD` at the top of `macrolens.py`.
+2. If OBS asks for a server password, set it in the `OBS_PASSWORD` environment variable before you run Macrolens.
+   In PowerShell: `$env:OBS_PASSWORD = "your password"`. The password is never saved in the code.
 3. Install the packages:
 
    ```
