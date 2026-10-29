@@ -1,72 +1,143 @@
-# obs-key-logger
-Linking OBS and Python code, the values entered on the keyboard are simply recorded in a text log only when the OBS side is recording. Connecting OBS and Python via WebSocket to hook keyboard input and logging input values as soon as recording starts.
+<p align="center">
+  <img src="assets/logo.svg" alt="Macrolens logo" width="160">
+</p>
 
-## 0. Environment
+<h1 align="center">Macrolens</h1>
 
-1. OBS 30.2.3
-2. input-overlay 5.0.6 (optional)
-3. pynput==1.7.7
-4. obs-websocket-py==1.0
-5. pyinstaller==6.11.1
-6. simpleaudio==1.0.4
-7. pydub==0.25.1
-8. audioop-lts==0.2.1
-9. ffmpeg==1.4
-10. (Windows only) [ffmpeg](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z) Set `Path` to `bin` in the folder where 7z was extracted.
-11. ffprobe==0.5
-12. [dotnet 8.0.404](https://learn.microsoft.com/ja-jp/dotnet/core/install/windows#install-with-visual-studio-code) (optional)
+<p align="center">
+  Record a task once, with the screen and every key and click.<br>
+  Hand both to an AI later and turn the task into an automation.
+</p>
 
-## 1. Environment setting
+---
 
-- OBS
+## What it is
 
-  https://obsproject.com/ja/download
+Macrolens is a small Python tool that runs beside [OBS Studio](https://obsproject.com/).
+While OBS records your screen, Macrolens logs what you do on the keyboard and mouse.
+It writes one timestamped line for each event, and it records the title of the focused window with each line.
 
-- Additional Packages
+You end up with two files that line up in time:
 
-  ```bash
-  # Optional
-  # Windows
-  https://github.com/univrsal/input-overlay/releases/download/5.0.6/input-overlay-5.0.6-windows-x64-Installer.exe
-  # Ubuntu
-  wget https://github.com/univrsal/input-overlay/releases/download/5.0.6/input-overlay-5.0.6-x86_64-linux-gnu.deb
-  sudo dpkg -i input-overlay-5.0.6-x86_64-linux-gnu.deb
+| File | What it holds |
+|---|---|
+| The OBS video | What the screen looked like, and why you pressed each key |
+| The Macrolens log | The exact keys, clicks, scrolls and window titles, with times |
 
-  # Required
-  # Windows / Ubuntu
-  pip install pynput==1.7.7 obs-websocket-py==1.0 pyinstaller==6.11.1
-  or
-  pip install pynput==1.7.7 obs-websocket-py==1.0 PyInstaller
-  # Windows
-  https://github.com/obsproject/obs-websocket/releases/download/4.9.1-compat/obs-websocket-4.9.1-compat-Qt6-Windows-Installer.exe
-  # Ubuntu
-  wget https://github.com/obsproject/obs-websocket/releases/download/4.9.1-compat/obs-websocket-4.9.1-compat-Ubuntu64.deb
-  sudo dpkg -i obs-websocket-4.9.1-compat-Ubuntu64.deb
-  ```
+## Why it exists
 
-- OBS settings
+Most automation starts with someone describing a task in words, and the words leave steps out.
+Macrolens captures the task as you really do it, so nothing is left to memory.
 
-  ![スクリーンショット 2024-12-03 111933](https://github.com/user-attachments/assets/42a56116-46f7-479b-94ac-2830f3a3dc0e)
+It is built to work alongside AI.
+Give a model the log and the video, and ask it to write the automation:
 
-  ![スクリーンショット 2024-12-03 111811](https://github.com/user-attachments/assets/a514478e-63cf-401e-86b5-02b345c15863)
+- A script that repeats the task (RPA, robotic process automation).
+- A step-by-step runbook for a teammate.
+- A macro for a tool such as AutoHotkey.
+- A test that checks the task still works.
 
-## 2. Result
+The log is plain tab-separated text, so any model or script reads it without extra tools.
 
-https://github.com/user-attachments/assets/624f8dcf-a362-4de1-a6e7-778c104179dc
+## How it works
 
-## 3. Executable file
+1. Macrolens connects to OBS over its built-in WebSocket server on `localhost`.
+2. It checks about 30 times a second whether OBS is recording.
+3. When recording starts, it opens a new log file in `logs/` and writes a `RECORD_START` line.
+4. While recording, it logs every key press and release, mouse click, and scroll.
+5. When recording stops, it writes `RECORD_STOP` and closes the file.
+6. Between recordings, it logs nothing.
 
-https://github.com/PINTO0309/obs-key-logger/releases/tag/exe
+It sends nothing over the network except to OBS on your own computer.
 
-```bash
-# Windows / Ubuntu + Python
-pyinstaller --onefile obs-key-logger.py
-pyinstaller --onefile mp4-key-logger.py
-# Ubuntu
-sudo chmod +x dist/obs-key-logger
-sudo chmod +x dist/mp4-key-logger
+## Privacy: read this first
 
-# Windows + C#
-cd csharp-obs-key-logger
-dotnet build -c Realease
+**Macrolens is a keylogger.** It records every key you press in every window while OBS records.
+That includes passwords, private messages and anything else you type.
+
+- Pause the OBS recording before you type a password or anything private.
+- Logs stay on your computer, in the `logs/` folder. The folder is in `.gitignore`.
+- Delete logs and videos before you share a folder.
+- Run it only on a computer you own, and only record yourself.
+  Recording other people without their consent is illegal in many places.
+
+## Setup
+
+You need OBS 28 or later (it includes the WebSocket server) and Python 3.9 or later.
+
+1. In OBS, open **Tools, WebSocket Server Settings**, tick **Enable WebSocket server** and keep port `4455`.
+2. If you set a password there, put it in `OBS_PASSWORD` at the top of `macrolens.py`.
+3. Install the packages:
+
+   ```
+   pip install -r requirements.txt
+   ```
+
+4. Open OBS, then start Macrolens:
+
+   ```
+   python macrolens.py
+   ```
+
+5. Press record in OBS, do your task, and stop the recording.
+6. Press `Ctrl+C` in the Macrolens window to quit.
+
+If OBS is not open when you start Macrolens, it stops with a connection error.
+
+## The log format
+
+One event per line, fields separated by tabs.
+Logs are named `YYYY-MM-DD_HH-MM-SS_task_log.tsv` and are UTF-8.
+
+| Field | Meaning |
+|---|---|
+| 1 | Wall-clock time, `YYYY-MM-DD HH:MM:SS.mmm` |
+| 2 | Event: `RECORD_START`, `RECORD_STOP`, `key_down`, `key_up`, `mouse_down`, `mouse_up`, `scroll` |
+| 3 | Title of the focused window (Windows only, empty on other systems) |
+| 4 | Key name, or the mouse button, or the scroll amount `dx,dy` |
+| 5 | Mouse and scroll events only: position `x,y` |
+
+Example:
+
 ```
+2026-10-29 14:02:11.482	RECORD_START
+2026-10-29 14:02:13.910	mouse_down	Invoices - Excel	left	642,318
+2026-10-29 14:02:13.988	mouse_up	Invoices - Excel	left	642,318
+2026-10-29 14:02:15.204	key_down	Invoices - Excel	a
+2026-10-29 14:02:15.260	key_up	Invoices - Excel	a
+```
+
+To match the log to the video, take the time of the `RECORD_START` line as second 0 of the video.
+The match is accurate to about a tenth of a second.
+
+## Using it with an AI
+
+Attach the `.tsv` log (and a few screenshots or the video) and ask something like:
+
+> This log is a recording of me doing a task. The window titles show which app I was in.
+> Write a Python script that repeats the task, and list any step you are unsure about.
+
+Check what the AI writes before you run it.
+Run a new automation on test data first.
+
+## Limits
+
+- Mouse movement is not logged, only clicks and scrolls.
+- The focused window title works on Windows only.
+- Keys are logged as the system reports them, so shortcuts show as separate key presses.
+- A game or app running as administrator may hide its input from Macrolens unless you run Macrolens as administrator too.
+
+## Credit and licence
+
+Macrolens is a modified fork of [PINTO0309/obs-key-logger](https://github.com/PINTO0309/obs-key-logger), Copyright its authors, released under the Apache License 2.0.
+This fork is released under the same licence. See [LICENSE](LICENSE).
+
+Changes from the original:
+
+- Records only while OBS is recording. The original kept keys in memory at all times and wrote them out when recording began.
+- Logs key releases, mouse clicks, scrolls and the focused window title.
+- Esc no longer quits the program.
+- Logs go to a `logs/` folder as tab-separated text.
+- Renamed to `macrolens.py`. The MP4 player, C# logger and build files were removed.
+
+Macrolens is not made by or endorsed by the OBS Project or the original author.

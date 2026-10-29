@@ -10,4 +10,5 @@ csharp-obs-key-logger/obj/
 csharp-obs-key-logger.deps.json
 csharp-obs-key-logger.runtimeconfig.json
 obs-key-logger
-mp4-key-logger
+mp4-key-loggerlogs/
+__pycache__/
