@@ -262,7 +262,7 @@ class Recorder:
         ]
         if self._fmt == "tsv":
             return "\t".join(values)
-        obj = dict(zip(COLUMNS, values))
+        obj = dict(zip(COLUMNS, values, strict=True))
         obj["video_time"] = float(values[1])
         if meta is not None:
             obj["meta"] = meta

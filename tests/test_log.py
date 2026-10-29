@@ -71,7 +71,7 @@ def parse_log(path):
         for line in lines[1:]:
             fields = line.split("\t")
             assert len(fields) == 6, f"{path}: {len(fields)} fields in {line!r}"
-            rows.append(dict(zip(COLUMNS, fields)))
+            rows.append(dict(zip(COLUMNS, fields, strict=True)))
     else:
         for line in lines:
             obj = json.loads(line)
