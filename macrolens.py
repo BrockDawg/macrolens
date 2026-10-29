@@ -105,7 +105,13 @@ def stop_log():
 
 def main_loop():
     ws = obsws(OBS_HOST, OBS_PORT, OBS_PASSWORD)
-    ws.connect()
+    try:
+        ws.connect()
+    except Exception as err:
+        sys.exit(
+            f"Could not reach OBS at {OBS_HOST}:{OBS_PORT} ({err}).\n"
+            "Open OBS and turn on Tools > WebSocket Server Settings > Enable WebSocket server."
+        )
     print("Connected to OBS WebSocket. Press Ctrl+C to quit.")
     try:
         while True:
