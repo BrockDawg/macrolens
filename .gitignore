@@ -32,3 +32,6 @@ client_secret*.json
 STATE.md
 CLAUDE.md
 AGENTS.md
+macrolens.settings.json
+.pytest_cache/
+.ruff_cache/

@@ -1,0 +1,7 @@
+{
+  "host": "localhost",
+  "port": 4455,
+  "log_dir": "logs",
+  "format": "tsv",
+  "reconnect_seconds": 5
+}
