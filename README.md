@@ -193,6 +193,7 @@ Stop reasons, in the `detail` of `RECORD_STOP`:
 `video_time` is the number of seconds into the OBS video at which the event happened.
 It comes from OBS's own recording clock, which already leaves out paused time.
 So it is right even when you started Macrolens after the recording began, and it does not move when the computer's clock is adjusted.
+It never goes backwards within a log: when OBS's clock reports a moment late, `video_time` holds for that moment instead.
 While the recording is paused it stays at the moment of the pause, so `RECORD_PAUSE` and `RECORD_RESUME` show the same value.
 To find an event in the video, seek to its `video_time`.
 

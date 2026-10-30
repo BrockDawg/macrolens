@@ -104,10 +104,13 @@ def sweep_file(path):
     assert rows[-1]["event"] == "RECORD_STOP", f"{path}: last row is {rows[-1]['event']}"
     assert sum(1 for row in rows if row["event"] == "RECORD_START") == 1
     state = "idle"
+    last_video = 0.0
     for row in rows:
         kind = row["event"]
         assert kind in EVENT_KINDS, kind
-        assert float(row["video_time"]) >= 0
+        video = float(row["video_time"])
+        assert video >= last_video, f"{path}: video_time steps back to {video} at {kind}"
+        last_video = video
         if kind.startswith("RECORD_"):
             assert row["window"] == "" and row["position"] == ""
         if kind == "RECORD_START":
@@ -421,6 +424,26 @@ def test_video_time_reanchors_on_each_poll(make_recorder):
     t.rec.event("key_up", "a")
     rows = parse_log(t.rec.log_path)
     assert [r["video_time"] for r in rows[1:]] == ["9.500", "10.500"]
+
+
+def test_video_time_never_steps_back_when_obs_lags(make_recorder):
+    # Seen on a real recording: OBS reported a duration 1 ms behind a key_down already written.
+    t = make_recorder()
+    t.rec.apply_status(True, False, duration_ms=1000)
+    t.mono.now = 0.040
+    t.rec.event("key_down", "a")  # 1.040 on our clock
+    t.rec.apply_status(True, False, duration_ms=1033)  # OBS's report lands 7 ms behind it
+    t.rec.event("key_up", "a")  # holds at 1.040
+    t.mono.now = 0.050
+    t.rec.event("key_down", "b")  # back on OBS's clock: 1.033 + 0.010
+    t.rec.apply_status(True, True, duration_ms=1030)  # pausing on a lagging report holds too
+    rows = parse_log(t.rec.log_path)
+    assert [(r["event"], r["video_time"]) for r in rows[1:]] == [
+        ("key_down", "1.040"),
+        ("key_up", "1.040"),
+        ("key_down", "1.043"),
+        ("RECORD_PAUSE", "1.043"),
+    ]
 
 
 def test_video_time_ignores_wall_clock_jumps(make_recorder):

@@ -85,10 +85,13 @@ def sweep_file(path):
     assert rows[-1]["event"] == "RECORD_STOP", f"{path}: last row is {rows[-1]['event']}"
     assert sum(1 for row in rows if row["event"] == "RECORD_START") == 1
     state = "idle"
+    last_video = 0.0
     for row in rows:
         kind = row["event"]
         assert kind in EVENT_KINDS, kind
-        assert float(row["video_time"]) >= 0
+        video = float(row["video_time"])
+        assert video >= last_video, f"{path}: video_time steps back to {video} at {kind}"
+        last_video = video
         if kind.startswith("RECORD_"):
             assert row["window"] == "" and row["position"] == ""
         if kind == "RECORD_START":

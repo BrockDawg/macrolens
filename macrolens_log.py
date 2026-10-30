@@ -145,6 +145,9 @@ class Recorder:
         self._anchor_video = 0.0
         self._anchor_mono = 0.0
         self._frozen = 0.0
+        # The last video_time written to the open file. OBS's outputDuration arrives late and in whole frames,
+        # so a re-anchor can land behind a line already written; video_time holds here instead of stepping back.
+        self._floor = 0.0
 
     # ---- public API: each method takes the lock once and never calls another public method ----
 
@@ -245,7 +248,7 @@ class Recorder:
     def _video_locked(self, now):
         if self._state != "recording":
             return self._frozen
-        return max(0.0, self._anchor_video + (now - self._anchor_mono))
+        return max(self._floor, self._anchor_video + (now - self._anchor_mono))
 
     def _anchor_locked(self, now, ms):
         self._anchor_video = ms / 1000.0
@@ -270,6 +273,7 @@ class Recorder:
 
     def _write_locked(self, kind, video, window="", detail="", position=""):
         line = self._format_line(self._clock(), video, kind, window, detail, position)
+        self._floor = video
         self._file.write(line + "\n")
         self._file.flush()
 
@@ -330,6 +334,7 @@ class Recorder:
         self._anchor_video = video
         self._anchor_mono = now
         self._frozen = video
+        self._floor = video
         self._state = "recording"
         return f"Recording started. Log: {path}"
 
